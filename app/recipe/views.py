@@ -40,9 +40,8 @@ class IngredientViewSet(BaseReicpeViewSets):
     serializer_class = serializers.IngredientSerializer
 
 
-class RecipeViewSet(viewsets.GenericViewSet,
-                 mixins.ListModelMixin,
-                 mixins.CreateModelMixin):
+class RecipeViewSet(viewsets.ModelViewSet):
+
     """Manage Recipe in db"""
 
     queryset = Recipe.objects.all()
@@ -50,9 +49,23 @@ class RecipeViewSet(viewsets.GenericViewSet,
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
+    def _params_to_ints(self, qs):
+        """Convert a list of string IDs to a list of integers"""
+        return [int(str_id) for str_id in qs.split(',')]
+
     def get_queryset(self):
         """Return objects for current authenticate user only"""
-        return self.queryset.filter(user=self.request.user)
+        tags = self.request.query_params.get('tags')
+        ingredients = self.request.query_params.get('ingredients')
+        queryset = self.queryset
+        if tags:
+            tag_ids = self._params_to_ints(tags)
+            queryset = queryset.filter(tags__id__in=tag_ids)
+        if ingredients:
+            ingredient_ids = self._params_to_ints(ingredients)
+            queryset = queryset.filter(ingredients__id__in=ingredient_ids)
+
+        return queryset.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         """Create a new recipe"""
